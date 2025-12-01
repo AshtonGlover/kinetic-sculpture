@@ -1,10 +1,9 @@
-// Pin definitions
 const int micPin = A1;
 const int motorPin = D2;
 
 // Timing constants
-const unsigned long LISTENING_DURATION = 30000;  // 30 seconds in ms
-const unsigned long MOVING_DURATION = 30000;     // 30 seconds in ms
+const unsigned long LISTENING_DURATION = 30000;  // 30 seconds 
+const unsigned long MOVING_DURATION = 30000;     // 30 seconds
 const int SAMPLE_RATE = 100;                     // Samples per second
 const int SAMPLE_INTERVAL = 1000 / SAMPLE_RATE;  // ms between samples
 const int MAX_SAMPLES = (LISTENING_DURATION / SAMPLE_INTERVAL);
@@ -16,7 +15,6 @@ enum State {
   MOVING
 };
 
-// Global variables
 State currentState = INIT;
 int micSamples[MAX_SAMPLES];
 int sampleIndex = 0;
@@ -118,13 +116,11 @@ void handleListeningState(unsigned long currentTime) {
 }
 
 void handleMovingState(unsigned long currentTime) {
-  // Check if it's time to play back the next sample
   if (currentTime - lastSampleTime >= SAMPLE_INTERVAL) {
     if (playbackIndex < sampleIndex) {
-      // Get the stored mic value
       int micValue = micSamples[playbackIndex];
       
-      // Map to motor speed (adjust these values based on your mic's range)
+      // Map to motor speed (might need to adjust based on mic input)
       int motorSpeed = map(micValue, 250, 350, 0, 255);
       motorSpeed = constrain(motorSpeed, 0, 255);  // Ensure within PWM range
 
@@ -159,7 +155,7 @@ void handleMovingState(unsigned long currentTime) {
     analogWrite(motorPin, 0);
     
     Serial.println("Cycle complete. Restarting...");
-    delay(2000);  // 2 second pause before restarting
+    delay(2000);
     
     // Transition back to INIT
     currentState = INIT;
