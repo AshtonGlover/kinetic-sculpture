@@ -1,0 +1,177 @@
+system:
+  name: "Real-Time Audio Wave Visualization"
+  description: "Interactive kinetic sculpture that visualizes audio in real-time through physical wave patterns"
+  
+components:
+  - name: "Microphone"
+    type: "Hardware"
+    pin: "A1"
+    description: "MAX4466 Electret Microphone - captures audio input"
+    outputs:
+      - "Analog audio signal (0-1023)"
+  
+  - name: "Audio Processor"
+    type: "Software Module"
+    file: "audio_processor.cpp"
+    description: "Processes audio samples with rolling buffer and smoothing"
+    functions:
+      - name: "initAudioProcessor"
+        description: "Initialize rolling buffer with DC offset"
+      - name: "processAudio"
+        description: "Calculate smoothed amplitude from buffer"
+        returns: "int amplitude (0-512)"
+      - name: "getSmoothedAmplitude"
+        description: "Get current smoothed amplitude value"
+      - name: "isNewSampleReady"
+        description: "Check if new sample available"
+      - name: "clearSampleReadyFlag"
+        description: "Clear sample ready flag"
+    inputs:
+      - "Raw audio samples from ISR"
+    outputs:
+      - "Smoothed amplitude value"
+    config:
+      buffer_size: 20
+      dc_offset: 512
+  
+  - name: "Timer Setup"
+    type: "Software Module"
+    file: "timer_setup.cpp"
+    description: "Configures Timer1 interrupt for precise audio sampling"
+    functions:
+      - name: "initAudioTimer"
+        description: "Setup Timer1 for 1kHz sampling rate"
+    interrupts:
+      - name: "TIMER1_COMPA_vect"
+        frequency: "1000 Hz"
+        description: "ISR that samples microphone and updates buffer"
+    outputs:
+      - "Triggers audio sampling"
+  
+  - name: "Motor Controller"
+    type: "Software Module"
+    file: "motor_controller.cpp"
+    description: "Controls DC motor speed based on audio amplitude"
+    functions:
+      - name: "initMotorController"
+        description: "Initialize motor pin as output"
+      - name: "updateMotorSpeed"
+        description: "Map amplitude to PWM speed"
+        parameters:
+          - name: "amplitude"
+            type: "int"
+            range: "0-512"
+      - name: "stopMotor"
+        description: "Stop motor (PWM = 0)"
+      - name: "setMotorSpeed"
+        description: "Set motor speed directly (for testing)"
+    inputs:
+      - "Audio amplitude from Audio Processor"
+    outputs:
+      - "PWM signal to motor (80-255)"
+    config:
+      min_speed: 80
+      max_speed: 255
+      update_interval: 10
+    pin: 2
+  
+  - name: "DC Motor"
+    type: "Hardware"
+    pin: "D2"
+    description: "DC motor with mechanical linkage for wave visualization"
+    inputs:
+      - "PWM speed control signal"
+    outputs:
+      - "Physical wave motion"
+  
+  - name: "Watchdog Timer"
+    type: "Software Module"
+    file: "watchdog_utils.cpp"
+    description: "System reliability - resets if main loop stalls"
+    functions:
+      - name: "initWatchdog"
+        description: "Enable watchdog with 8 second timeout"
+      - name: "resetWatchdog"
+        description: "Feed watchdog to prevent reset"
+    config:
+      timeout: "8 seconds"
+
+data_flow:
+  - from: "Microphone"
+    to: "Timer ISR"
+    data: "Analog audio signal"
+    trigger: "Timer interrupt (1kHz)"
+  
+  - from: "Timer ISR"
+    to: "Audio Buffer"
+    data: "Raw audio samples"
+    method: "Rolling buffer update"
+  
+  - from: "Audio Buffer"
+    to: "Audio Processor"
+    data: "Buffer contents"
+    trigger: "newSampleReady flag"
+  
+  - from: "Audio Processor"
+    to: "Main Loop"
+    data: "Smoothed amplitude"
+    method: "getSmoothedAmplitude()"
+  
+  - from: "Main Loop"
+    to: "Motor Controller"
+    data: "Amplitude value"
+    method: "updateMotorSpeed(amplitude)"
+  
+  - from: "Motor Controller"
+    to: "DC Motor"
+    data: "PWM speed signal"
+    method: "analogWrite()"
+  
+  - from: "DC Motor"
+    to: "Physical Output"
+    data: "Wave motion"
+    description: "Mechanical linkage creates wave pattern"
+
+main_loop:
+  steps:
+    - name: "Reset Watchdog"
+      function: "resetWatchdog()"
+      frequency: "Every iteration"
+    
+    - name: "Check for New Sample"
+      condition: "isNewSampleReady()"
+      action: "processAudio()"
+    
+    - name: "Update Motor"
+      condition: "Every 10ms (MOTOR_UPDATE_INTERVAL)"
+      action: "updateMotorSpeed(getSmoothedAmplitude())"
+
+requirements:
+  pwm:
+    description: "Control motor speeds via PWM (analogWrite)"
+    implementation: "Motor Controller uses PWM on pin 2"
+  
+  adc:
+    description: "Read analog audio signal from microphone"
+    implementation: "Timer ISR uses analogRead() on pin A1"
+  
+  interrupt:
+    description: "Timer interrupt for precise audio sampling"
+    implementation: "Timer1 ISR samples at 1kHz"
+  
+  timer:
+    description: "Hardware timer for audio sampling intervals"
+    implementation: "Timer1 configured for 1kHz sampling"
+  
+  watchdog:
+    description: "System reset if processing hangs"
+    implementation: "Watchdog timer with 8 second timeout"
+
+config:
+  sample_rate: 1000
+  buffer_size: 20
+  motor_update_interval: 10
+  min_motor_speed: 80
+  max_motor_speed: 255
+  dc_offset: 512
+  watchdog_timeout: 8
