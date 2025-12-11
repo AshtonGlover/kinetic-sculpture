@@ -32,7 +32,7 @@
 // On-device test mode:
 // - 0: run normal program
 // - 1: run unit tests at boot, print results to Serial, then idle
-#define ENABLE_ON_DEVICE_TESTS 0
+#define ENABLE_ON_DEVICE_TESTS 1
 
 #endif // CONFIG_H
 
