@@ -7,5 +7,9 @@
  */
 void initAudioTimer();
 
+// Returns the number of audio samples captured since boot.
+// Useful for debugging whether the timer callback is running.
+unsigned long getAudioSampleCount();
+
 #endif // TIMER_SETUP_H
 
