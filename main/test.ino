@@ -60,7 +60,7 @@ void test_listening_sampling_happens_only_after_interval() {
   resetVars();
   currentState   = LISTENING;
   lastSampleTime = 1000;
-  int now = 1005;  // less than SAMPLE_INTERVAL (10 ms)
+  unsigned long now = 1005;  // less than SAMPLE_INTERVAL (10 ms)
 
   handleListeningState(now);
 
@@ -80,7 +80,7 @@ void test_moving_playback_index_wraps() {
   sampleIndex = 3;  // indices 0,1,2 valid
   playbackIndex = 2;  // at last valid index
   lastPlaybackTime = 1000;
-  int now = 1010; // >= SAMPLE_INTERVAL
+  unsigned long now = 1010; // >= SAMPLE_INTERVAL
 
   // mock some data
   micSamples[0] = 100;
