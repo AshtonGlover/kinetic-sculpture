@@ -36,6 +36,9 @@
 #define ACTIVE_ENTER_DEBOUNCE_MS 50
 // Time with no meaningful audio before entering IDLE (motor off).
 #define IDLE_TIMEOUT_MS 2000
+// After entering IDLE, wait this long before allowing IDLE->ACTIVE.
+// This gives DC offset auto-calibration time to converge so we don't false-trigger ACTIVE.
+#define IDLE_CALIBRATION_WARMUP_MS 500
 
 // --- Safety / health monitoring ---
 // If the audio sampling timer stops advancing for this long, enter FAULT.

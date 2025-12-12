@@ -7,6 +7,7 @@
 
 // FSM state
 static SystemState state = SYSTEM_INIT;
+static unsigned long stateEnterMs = 0;
 
 // Health monitoring
 static unsigned long lastSampleCount = 0;
@@ -39,6 +40,7 @@ static void enterState(SystemState next, unsigned long nowMs) {
   if (state == next) return;
 
   state = next;
+  stateEnterMs = nowMs;
 
   switch (state) {
     case SYSTEM_INIT:
@@ -104,6 +106,7 @@ static int slewTowards(int current, int target) {
 
 void initSystemSupervisor() {
   state = SYSTEM_INIT;
+  stateEnterMs = millis();
   faultLatched = false;
   faultReason = "";
 
@@ -172,6 +175,12 @@ void systemSupervisorTick(unsigned long nowMs, unsigned long audioSampleCount, i
     // In IDLE, allow baseline drift calibration.
     setAutoCalibrationEnabled(true);
     stopMotor();
+
+    // Give the DC offset estimator time to converge before allowing ACTIVE.
+    if (nowMs - stateEnterMs < IDLE_CALIBRATION_WARMUP_MS) {
+      aboveEnterSinceMs = 0;
+      return;
+    }
 
     if (amplitude >= ACTIVE_ENTER_THRESHOLD) {
       if (aboveEnterSinceMs == 0) aboveEnterSinceMs = nowMs;
