@@ -10,12 +10,6 @@ void initMotorController() {
 }
 
 void updateMotorSpeed(int amplitude) {
-  // If the mic is unplugged / silence, keep the motor stopped.
-  if (amplitude <= SILENCE_THRESHOLD) {
-    analogWrite(MOTOR_PIN, 0);
-    return;
-  }
-
   // Map audio amplitude to motor speed
   // Higher amplitude = faster motor speed
   // Using a wider range for better responsiveness

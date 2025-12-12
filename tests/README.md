@@ -40,7 +40,10 @@ This will compile and run all tests, showing PASS/FAIL for each.
 - Actual microphone input
 - Actual motor output
 
-These require real Arduino hardware and should be tested with `main/test.ino` on the device.
+These require real Arduino hardware and should be tested on-device.
+
+On this project, on-device tests live in `main/tests_on_device.cpp` and run when
+`ENABLE_ON_DEVICE_TESTS` is set to `1` in `main/config.h`.
 
 
 

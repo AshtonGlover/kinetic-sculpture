@@ -11,9 +11,7 @@
 #include "motor_controller.h"
 #include "watchdog_utils.h"
 #include "tests_on_device.h"
-
-// Motor update timing
-static unsigned long lastMotorUpdate = 0;
+#include "system_supervisor.h"
 
 void setup() {
   Serial.begin(9600);
@@ -32,17 +30,22 @@ void setup() {
   initMotorController();
   initAudioTimer();
   initWatchdog();
+  initSystemSupervisor();
   
   Serial.println("=== Real-Time Audio Wave Visualization ===");
   Serial.println("System initialized. Processing audio in real-time...");
   Serial.print("Sampling rate: ");
   Serial.print(SAMPLE_RATE);
   Serial.println(" Hz");
+  Serial.println("Commands: 's' shutdown, 'w' wake, 'r' reset from fault");
 }
 
 void loop() {
   // Feed watchdog timer to prevent system reset
   resetWatchdog();
+
+  // Handle user commands (non-blocking)
+  systemSupervisorHandleSerial(millis());
   
   // Debug: verify the sampling callback is firing (prints once per second)
   static unsigned long lastSampleCount = 0;
@@ -60,12 +63,8 @@ void loop() {
     processAudio();
     clearSampleReadyFlag();
   }
-  
-  // Update motor speed at regular intervals (smoother than every sample)
-  unsigned long currentTime = millis();
-  if (currentTime - lastMotorUpdate >= MOTOR_UPDATE_INTERVAL) {
-    int amplitude = getSmoothedAmplitude();
-    updateMotorSpeed(amplitude);
-    lastMotorUpdate = currentTime;
-  }
+
+  // Run the system FSM (decides IDLE/ACTIVE/FAULT/SHUTDOWN and motor PWM)
+  const unsigned long nowMs = millis();
+  systemSupervisorTick(nowMs, getAudioSampleCount(), getSmoothedAmplitude());
 }

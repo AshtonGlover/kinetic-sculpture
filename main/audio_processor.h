@@ -24,6 +24,18 @@ int processAudio();
 int getSmoothedAmplitude();
 
 /**
+ * Enable/disable automatic DC offset calibration.
+ * When enabled, the audio processor slowly adapts its DC offset estimate based on the rolling average.
+ * Typically enabled in IDLE (quiet) to track baseline drift.
+ */
+void setAutoCalibrationEnabled(bool enabled);
+
+/**
+ * Get the current DC offset estimate used for amplitude calculations.
+ */
+int getDcOffsetEstimate();
+
+/**
  * Check if a new audio sample is ready for processing
  * 
  * @return true if new sample available, false otherwise

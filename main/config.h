@@ -26,13 +26,29 @@
 // Debug output interval (milliseconds)
 #define DEBUG_INTERVAL 100
 
-// Treat very small amplitudes as silence (prevents motor from running when mic is unplugged)
+// --- Audio thresholding / FSM tuning ---
+// If amplitude stays below this threshold for > IDLE_TIMEOUT_MS, the system enters IDLE (motor off).
 #define SILENCE_THRESHOLD 5
+// Hysteresis: require a slightly higher threshold to enter ACTIVE than to remain ACTIVE.
+#define ACTIVE_ENTER_THRESHOLD 15
+#define ACTIVE_EXIT_THRESHOLD 8
+// Debounce entering ACTIVE (ms) to avoid chatter on noise.
+#define ACTIVE_ENTER_DEBOUNCE_MS 50
+// Time with no meaningful audio before entering IDLE (motor off).
+#define IDLE_TIMEOUT_MS 2000
+
+// --- Safety / health monitoring ---
+// If the audio sampling timer stops advancing for this long, enter FAULT.
+#define SAMPLE_STALL_TIMEOUT_MS 250
+
+// --- Motor smoothing ---
+// Max PWM delta per MOTOR_UPDATE_INTERVAL tick (slew-rate limiting for smooth motion).
+#define PWM_SLEW_STEP 8
 
 // On-device test mode:
 // - 0: run normal program
 // - 1: run unit tests at boot, print results to Serial, then idle
-#define ENABLE_ON_DEVICE_TESTS 1
+#define ENABLE_ON_DEVICE_TESTS 0
 
 #endif // CONFIG_H
 

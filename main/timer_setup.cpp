@@ -35,6 +35,10 @@ unsigned long getAudioSampleCount() {
   return audioSampleCount;
 }
 
+bool isAudioTimerOk() {
+  return audioTimerOk;
+}
+
 void initAudioTimer() {
   // Setup timer for 1kHz sampling (1000 Hz) using the Arduino Renesas core's FspTimer.
   // Important: pick a real channel using get_available_timer(); passing -1 does NOT auto-select.

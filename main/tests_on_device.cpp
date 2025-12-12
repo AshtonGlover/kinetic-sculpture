@@ -4,6 +4,8 @@
 #include "audio_processor.h"
 #include "motor_controller.h"
 #include "watchdog_utils.h"
+#include "system_supervisor.h"
+#include "timer_setup.h"
 
 #include <Arduino.h>
 
@@ -70,6 +72,9 @@ static bool test_config_constants() {
   ASSERT_TRUE(MIN_MOTOR_SPEED >= 0 && MIN_MOTOR_SPEED < MAX_MOTOR_SPEED);
   ASSERT_TRUE(MAX_MOTOR_SPEED <= 255);
   ASSERT_TRUE(MOTOR_UPDATE_INTERVAL > 0);
+  ASSERT_TRUE(IDLE_TIMEOUT_MS > 0);
+  ASSERT_TRUE(ACTIVE_ENTER_THRESHOLD > ACTIVE_EXIT_THRESHOLD);
+  ASSERT_TRUE(SAMPLE_STALL_TIMEOUT_MS > 0);
   return true;
 }
 
@@ -82,6 +87,7 @@ static bool test_audio_processor_initialization() {
 
 static bool test_audio_processor_smoothing() {
   initAudioProcessor();
+  setAutoCalibrationEnabled(false);
 
   for (int i = 0; i < BUFFER_SIZE; i++) {
     audioBuffer[i] = 700; // above DC offset
@@ -114,6 +120,7 @@ static bool test_motor_controller_basic() {
 
 static bool test_integration_audio_to_motor() {
   initAudioProcessor();
+  setAutoCalibrationEnabled(false);
   initMotorController();
 
   for (int i = 0; i < BUFFER_SIZE; i++) {
@@ -143,6 +150,43 @@ static bool test_watchdog_smoke() {
   return true;
 }
 
+static bool test_supervisor_idle_to_active_and_back() {
+  // This is a logic-level test that does not rely on real ADC input.
+  initAudioProcessor();
+  initMotorController();
+  initAudioTimer();
+  initSystemSupervisor();
+
+  ASSERT_TRUE(isAudioTimerOk());
+
+  // Tick once using real sample count.
+  unsigned long sampleCount = getAudioSampleCount();
+  systemSupervisorTick(millis(), sampleCount, 0);
+
+  // Should settle into IDLE quickly.
+  ASSERT_TRUE(getSystemState() == SYSTEM_IDLE);
+
+  // Feed "valid audio" above enter threshold for debounce duration -> ACTIVE.
+  unsigned long now = millis();
+  for (int i = 0; i < 10; i++) {
+    sampleCount = getAudioSampleCount();
+    systemSupervisorTick(now, sampleCount, ACTIVE_ENTER_THRESHOLD + 10);
+    delay(10);
+    now = millis();
+  }
+  ASSERT_TRUE(getSystemState() == SYSTEM_ACTIVE);
+
+  // Now simulate silence; wait past IDLE timeout and ensure we eventually return to IDLE.
+  unsigned long start = millis();
+  while (millis() - start < (IDLE_TIMEOUT_MS + 500)) {
+    sampleCount = getAudioSampleCount();
+    systemSupervisorTick(millis(), sampleCount, 0);
+    delay(10);
+  }
+  ASSERT_TRUE(getSystemState() == SYSTEM_IDLE);
+  return true;
+}
+
 bool runAllTests() {
   totalTests = passedTests = failedTests = 0;
 
@@ -157,6 +201,7 @@ bool runAllTests() {
   runTest("audio_processor_smoothing", test_audio_processor_smoothing);
   runTest("motor_controller_basic", test_motor_controller_basic);
   runTest("watchdog_smoke", test_watchdog_smoke);
+  runTest("supervisor_idle_active_idle", test_supervisor_idle_to_active_and_back);
   runTest("integration_audio_to_motor", test_integration_audio_to_motor);
 
   Serial.println();

@@ -37,16 +37,28 @@ components:
   - name: "Timer Setup"
     type: "Software Module"
     file: "timer_setup.cpp"
-    description: "Configures Timer1 interrupt for precise audio sampling"
+    description: "Configures a hardware timer interrupt for precise audio sampling (UNO R4 uses FspTimer)"
     functions:
       - name: "initAudioTimer"
-        description: "Setup Timer1 for 1kHz sampling rate"
+        description: "Setup periodic timer for 1kHz sampling rate"
     interrupts:
-      - name: "TIMER1_COMPA_vect"
+      - name: "timer overflow callback"
         frequency: "1000 Hz"
         description: "ISR that samples microphone and updates buffer"
     outputs:
       - "Triggers audio sampling"
+
+  - name: "System Supervisor"
+    type: "Software Module"
+    file: "system_supervisor.cpp"
+    description: "Finite state machine (INIT/IDLE/ACTIVE/FAULT/SHUTDOWN) and safety/health supervision"
+    functions:
+      - name: "initSystemSupervisor"
+        description: "Initialize FSM and health timers"
+      - name: "systemSupervisorTick"
+        description: "State transitions + motor PWM slew limiting"
+      - name: "systemSupervisorHandleSerial"
+        description: "Handle user commands (shutdown/wake/reset)"
   
   - name: "Motor Controller"
     type: "Software Module"
@@ -118,11 +130,11 @@ data_flow:
     method: "getSmoothedAmplitude()"
   
   - from: "Main Loop"
-    to: "Motor Controller"
-    data: "Amplitude value"
-    method: "updateMotorSpeed(amplitude)"
+    to: "System Supervisor"
+    data: "Amplitude + sample count"
+    method: "systemSupervisorTick(now, sampleCount, amplitude)"
   
-  - from: "Motor Controller"
+  - from: "System Supervisor"
     to: "DC Motor"
     data: "PWM speed signal"
     method: "analogWrite()"
@@ -144,7 +156,7 @@ main_loop:
     
     - name: "Update Motor"
       condition: "Every 10ms (MOTOR_UPDATE_INTERVAL)"
-      action: "updateMotorSpeed(getSmoothedAmplitude())"
+      action: "systemSupervisorTick(now, getAudioSampleCount(), getSmoothedAmplitude())"
 
 requirements:
   pwm:
@@ -157,11 +169,11 @@ requirements:
   
   interrupt:
     description: "Timer interrupt for precise audio sampling"
-    implementation: "Timer1 ISR samples at 1kHz"
+    implementation: "Hardware timer callback samples at 1kHz (UNO R4 uses FspTimer)"
   
   timer:
     description: "Hardware timer for audio sampling intervals"
-    implementation: "Timer1 configured for 1kHz sampling"
+    implementation: "FspTimer configured for 1kHz sampling on UNO R4"
   
   watchdog:
     description: "System reset if processing hangs"
